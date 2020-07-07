@@ -14,6 +14,23 @@ int cap_flg;
 
 int type = 0;
 int region = 0;
+int position_x = 0, position_y = 0;
+
+void clickPosition(int x, int y) {
+    x += position_x;
+    y += position_y;
+
+    SetCursorPos(x, y);
+    INPUT Inputs[2] = { 0 };
+
+    Inputs[0].type = INPUT_MOUSE;
+    Inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+
+    Inputs[1].type = INPUT_MOUSE;
+    Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+
+    SendInput(2, Inputs, sizeof(INPUT));
+}
 
 DWORD FindProcessId()
 {
@@ -143,7 +160,7 @@ Mat s2mat(POINT a, POINT b) {
     // use the previously created device context with the bitmap
     SelectObject(hwindowCompatibleDC, hbwindow);
     // copy from the window device context to the bitmap device context
-    StretchBlt(hwindowCompatibleDC, 0, 0, width, height, hwindowDC, 0, 0, srcwidth, srcheight, SRCCOPY); //change SRCCOPY to NOTSRCCOPY for wacky colors !
+    StretchBlt(hwindowCompatibleDC, 0, 0, width, height, hwindowDC, position_x, position_y, srcwidth, srcheight, SRCCOPY); //change SRCCOPY to NOTSRCCOPY for wacky colors !
     GetDIBits(hwindowCompatibleDC, hbwindow, 0, height, src.data, (BITMAPINFO*)&bi, DIB_RGB_COLORS);  //copy from hwindowCompatibleDC to hbwindow
 
     // avoid memory leak
@@ -257,7 +274,7 @@ bool c_prep(Mat input) {
     cv::compare(img1, ma, diff, cv::CMP_NE);
     int nz = cv::countNonZero(diff);
     cout << "prep " << nz << endl;
-    SetCursorPos(500, 340);
+    SetCursorPos(position_x+500, position_y+340);
     while (nz > 1000) {
         POINT a, b;
         a.x = 970;
@@ -280,7 +297,7 @@ bool c_prep(Mat input) {
 
 bool c_wait1(Mat input) {
     int flg = 0;
-    Mat ma = region == 1 ? imread("wait.png") : imread("wait_jp.png");
+    Mat ma = imread("wait_jp.png");
     cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
     Mat fp = imread("fp.png");
     cv::cvtColor(fp, fp, COLOR_BGR2GRAY);
@@ -323,44 +340,19 @@ bool c_wait1(Mat input) {
 
 void a_init() {
     //waitTime();
-    SetCursorPos(670, 210);
-    INPUT Inputs[2] = { 0 };
-
-    Inputs[0].type = INPUT_MOUSE;
-    Inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-
-    Inputs[1].type = INPUT_MOUSE;
-    Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-
-    SendInput(2, Inputs, sizeof(INPUT));
+    clickPosition(670, 210);
     waitTime(500);
     if (type == 1)
-        SetCursorPos(698 + rand() % 235, 368);//398 +rand() % 26);
+        clickPosition(698 + rand() % 235, 368);//398 +rand() % 26);
     else if (type == 2)
-        SetCursorPos(698 + rand() % 235, 398);//398 +rand() % 26);
-    //INPUT Inputs[2] = { 0 };
-
-    Inputs[0].type = INPUT_MOUSE;
-    Inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-
-    Inputs[1].type = INPUT_MOUSE;
-    Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-
-    SendInput(2, Inputs, sizeof(INPUT));
+        clickPosition(698 + rand() % 235, 398);//398 +rand() % 26);
+    else if (type == 3)
+        clickPosition(698 + rand() % 235, 464);//398 +rand() % 26);
 }
 
 void a_prep() {
     waitTime(3000);
-    SetCursorPos(663+rand()%181, 522+rand()%32);
-    INPUT Inputs[2] = { 0 };
-
-    Inputs[0].type = INPUT_MOUSE;
-    Inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-
-    Inputs[1].type = INPUT_MOUSE;
-    Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-
-    SendInput(2, Inputs, sizeof(INPUT));
+    clickPosition(663+rand()%181, 522+rand()%32);
 }
 
 void a_captcha() {
@@ -395,16 +387,7 @@ void a_captcha() {
         }
         SendInput(12, input, sizeof(INPUT));
 
-        SetCursorPos(550, 467);
-        INPUT Inputs[2] = { 0 };
-
-        Inputs[0].type = INPUT_MOUSE;
-        Inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-
-        Inputs[1].type = INPUT_MOUSE;
-        Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-
-        SendInput(2, Inputs, sizeof(INPUT));
+        clickPosition(550, 467);
         waitKey(6000);
         cv::Rect myROI(350, 150, 270, 70);
         Mat sc, gray;
@@ -461,43 +444,17 @@ void a_FP() {
         waitKey(500);
     }
     if (region == 2) {
-        SetCursorPos(449, 389);
-        INPUT Inputs[2] = { 0 };
-
-        Inputs[0].type = INPUT_MOUSE;
-        Inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-
-        Inputs[1].type = INPUT_MOUSE;
-        Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-        SendInput(2, Inputs, sizeof(INPUT));
+        clickPosition(449, 389);
         waitKey(1000);
     }
-    SetCursorPos(550, 467);
-    INPUT Inputs[2] = { 0 };
-
-    Inputs[0].type = INPUT_MOUSE;
-    Inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-
-    Inputs[1].type = INPUT_MOUSE;
-    Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-
-    SendInput(2, Inputs, sizeof(INPUT));
+    clickPosition(550, 467);
 }
 
 void a_game() {
     waitTime(3000);
-    SetCursorPos(734+rand()%56, 526+rand()%41);
-    INPUT Inputs[2] = { 0 };
-
-    Inputs[0].type = INPUT_MOUSE;
-    Inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-
-    Inputs[1].type = INPUT_MOUSE;
-    Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-
-    SendInput(2, Inputs, sizeof(INPUT));
+    clickPosition(734+rand()%56, 526+rand()%41);
     waitTime(3000);
-    SetCursorPos(503 + rand() % 69, 440 + rand() % 61);
+    SetCursorPos(position_x + 503 + rand() % 69, position_y + 440 + rand() % 61);
     while (1) {
         INPUT Inputs[2] = { 0 };
 
@@ -509,7 +466,7 @@ void a_game() {
 
         SendInput(2, Inputs, sizeof(INPUT));
 
-        Mat ma = region == 1 ? imread("wait.png") : imread("wait_jp.png");
+        Mat ma = imread("wait_jp.png");
         cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
         cv::Rect myROI(40, 50, 250, 100);
         POINT a, b;
@@ -538,7 +495,7 @@ void a_wait() {
 }
 
 bool c_game(Mat input) {
-    Mat ma = region == 1?imread("game.png"): imread("game_jp.png");
+    Mat ma = imread("game_jp.png");
     cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
     cv::Rect myROI(740, 526, 40, 40);
     cv::Mat img1 = input(myROI);
@@ -547,7 +504,7 @@ bool c_game(Mat input) {
     cv::compare(img1, ma, diff, cv::CMP_NE);
     int nz = cv::countNonZero(diff);
     cout << "game " << nz << endl;
-    SetCursorPos(530+rand()%50, 360+rand()%50);
+    SetCursorPos(position_x + 530+rand()%50, position_y + 360+rand()%50);
     while (nz > 400) {
         INPUT Inputs[2] = { 0 };
 
@@ -590,7 +547,7 @@ bool c_captcha(Mat input) {
     cv::compare(img1, ma, diff, cv::CMP_NE);
     int nz = cv::countNonZero(diff);
     //cout << "prep " << nz << endl;
-    SetCursorPos(500, 340);
+    SetCursorPos(position_x + 500, position_y + 340);
     while (nz > 10) {
         POINT a, b;
         a.x = 970;
@@ -644,8 +601,10 @@ int main()
     } while (hwnd != NULL);
     RECT rect;
     GetWindowRect(hwnd2, &rect);
-    cout << rect.left <<" "<< rect.right << " " << rect.top << " " << rect.bottom << endl;
-    MoveWindow(hwnd2, -8, 0, 976, 579, false);
+    position_x = rect.left + 8;
+    position_y = rect.top;
+    //cout << rect.left <<" "<< rect.right << " " << rect.top << " " << rect.bottom << endl;
+    //MoveWindow(hwnd2, -8, 0, 976, 579, false);
     cout << "1:steam 2: jp" << endl;
     cin >> region;
     while (region == 3) {
