@@ -15,6 +15,7 @@ int cap_flg;
 int type = 0;
 int region = 0;
 int position_x = 0, position_y = 0;
+int fp_drink = -1;
 
 void clickPosition(int x, int y) {
     x += position_x;
@@ -192,8 +193,9 @@ void screenshot(POINT a, POINT b)
 }
 
 struct state {
-    state* next_state, *next2;
-    bool (*check_next)(Mat input);
+    //state* next_state, *next2;
+    std::vector<state*> next_state;
+    int (*check_next)(Mat input);
     void (*action)();
 };
 
@@ -212,29 +214,25 @@ void run_machine() {
     b.x = 970;
     b.y = 570;
     Mat input, gray;
-    waitKey();
     while (1) {
         now.action();
+        if (fp_drink == -2)
+            return;
         if (cap_flg == 0) {
             input = s2mat(a, b);
             cv::cvtColor(input, gray, COLOR_BGR2GRAY);
             cv::threshold(gray, gray, 0, 255, THRESH_BINARY_INV | THRESH_OTSU);
-            bool r = now.check_next(gray);
-            if (r) {
-                now = *(now.next_state);
-            }
-            else {
-                now = *(now.next2);
-            }
+            int r = now.check_next(gray);
+            now = *(now.next_state[r]);
             cv::waitKey(300);
         }
         else {
-            now = *(now.next_state);
+            now = *(now.next_state[0]);
         }
     }
 }
 
-bool c_init(Mat input) {
+int c_init(Mat input) {
     Mat ma = region == 1 ? imread("init.png") : imread("init_jp.png");
     cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
     cv::Rect myROI(0, 50, 100, 100);
@@ -259,12 +257,11 @@ bool c_init(Mat input) {
         nz = cv::countNonZero(diff);
         printf("init %d\n", nz);
         waitKey(1000);
-        if (region == 2) waitKey(5000);
     }
-    return true;
+    return 0;
 }
 
-bool c_prep(Mat input) {
+int c_prep(Mat input) {
     Mat ma = region == 1 ? imread("prep.png") : imread("prep_jp.png");
     cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
     cv::Rect myROI(680, 510, 100, 60);
@@ -275,6 +272,7 @@ bool c_prep(Mat input) {
     int nz = cv::countNonZero(diff);
     cout << "prep " << nz << endl;
     SetCursorPos(position_x+500, position_y+340);
+    int cnt = 0;
     while (nz > 1000) {
         POINT a, b;
         a.x = 970;
@@ -290,12 +288,16 @@ bool c_prep(Mat input) {
         nz = cv::countNonZero(diff);
         cout << "prep " << nz << endl;
         //imshow("i", img1);
+        ++cnt;
         waitKey(500);
+        if (cnt == 10) {
+            return 1;
+        }
     }
-    return true;
+    return 0;
 }
 
-bool c_wait1(Mat input) {
+int c_wait1(Mat input) {
     int flg = 0;
     Mat ma = imread("wait_jp.png");
     cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
@@ -315,9 +317,9 @@ bool c_wait1(Mat input) {
         if (nz2 < 100)
             flg += 1;
         if (flg > 2)
-            return false;
+            return 1;
         if (nz < 4000)
-            return true;
+            return 0;
         POINT a, b;
         a.x = 970;
         a.y = 570;
@@ -409,7 +411,13 @@ void a_captcha() {
 
 void a_FP() {
     waitTime(1000);
-
+    if (fp_drink == 0) {
+        cout << "no fp" << endl;
+        waitKey(0);
+        fp_drink = -2;
+        return;
+    }
+    if (fp_drink > 0) --fp_drink;
     while (1) {
         cv::Rect myROI(350, 150, 270, 70);
         POINT a, b;
@@ -494,7 +502,7 @@ void a_wait() {
     return;
 }
 
-bool c_game(Mat input) {
+int c_game(Mat input) {
     Mat ma = imread("game_jp.png");
     cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
     cv::Rect myROI(740, 526, 40, 40);
@@ -531,14 +539,14 @@ bool c_game(Mat input) {
         //imshow("i", img1);
         waitTime(100);
     }
-    return true;
+    return 0;
 }
 
-bool c_wait3(Mat input) {
-    return true;
+int c_wait3(Mat input) {
+    return 0;
 }
 
-bool c_captcha(Mat input) {
+int c_captcha(Mat input) {
     Mat ma = imread("cap.png");
     cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
     cv::Rect myROI(350, 150, 270, 70);
@@ -566,16 +574,16 @@ bool c_captcha(Mat input) {
         cv::compare(img1, cap, diff, cv::CMP_NE);
         int nz = cv::countNonZero(diff);
         if (nz < 1000)
-            return false;
+            return 1;
         ma = region == 1 ? imread("cap_fp.png") : imread("cap_fp_jp.png");
         cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
         cv::compare(img1, ma, diff, cv::CMP_NE);
         nz = cv::countNonZero(diff);
         if (nz < 1000)
-            return true;
+            return 0;
         waitKey(500);
     }
-    return true;
+    return 0;
 }
 
 int main()
@@ -613,37 +621,41 @@ int main()
         cout << p.x << " " << p.y << endl;
         waitKey(1000);
     }
-    cout << "1:new event 2: repeat" << endl;
+    cout << "use FP drink. -1 for infinite" << endl;
+    cin >> fp_drink;
+    cout << "event no." << endl;
     cin >> type;
     cap_flg = 0;
     srand(time(NULL));
-    init.next_state = &prep;
+    init.next_state.push_back(&prep);
+    init.next_state.push_back(&init);
     init.action = a_init;
     init.check_next = c_prep;
 
-    prep.next_state = &wait1;
+    prep.next_state.push_back(&wait1);
+    prep.next_state.push_back(&FP);
     prep.action = a_prep;
-    prep.next2 = &FP;
     prep.check_next = c_wait1;
 
-    FP.next_state = &prep;
-    FP.next2 = &scaptcha;
+    FP.next_state.push_back(&prep);
+    init.next_state.push_back(&init);
+    //FP.next_state.push_back(&scaptcha);
     FP.action = a_FP;
     FP.check_next = c_prep;
 
-    scaptcha.next_state = &prep;
-    scaptcha.action = a_captcha;
-    scaptcha.check_next = c_prep;
+    //scaptcha.next_state.push_back(&prep);
+    //scaptcha.action = a_captcha;
+    //scaptcha.check_next = c_prep;
 
-    wait1.next_state = &game;
+    wait1.next_state.push_back(&game);
     wait1.action = a_wait;
     wait1.check_next = c_game;
 
-    game.next_state = &wait3;
+    game.next_state.push_back(&wait3);
     game.action = a_game;
     game.check_next = c_wait3;
 
-    wait3.next_state = &init;
+    wait3.next_state.push_back(&init);
     wait3.action = a_wait;
     wait3.check_next = c_init;
 
