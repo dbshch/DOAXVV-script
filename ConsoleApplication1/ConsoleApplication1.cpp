@@ -398,7 +398,7 @@ void a_captcha() {
         cv::threshold(sc, sc, 0, 255, THRESH_BINARY_INV | THRESH_OTSU);
         cv::Mat img1 = sc(myROI);
        // imshow("i", img1);
-        Mat cap = imread("cap.png");
+        Mat cap = region == 1 ? imread("cap.png") : imread("cap_jp.png");
         cv::cvtColor(cap, cap, COLOR_BGR2GRAY);
         Mat diff;
         cv::compare(img1, cap, diff, cv::CMP_NE);
@@ -432,7 +432,7 @@ void a_FP() {
         cv::Mat img1 = input(myROI);
         //imwrite("cap_fp_jp.png", img1);
         //imshow("i", img1);
-        Mat cap = imread("cap.png");
+        Mat cap = region == 1 ? imread("cap.png") : imread("cap_jp.png");
         cv::cvtColor(cap, cap, COLOR_BGR2GRAY);
         Mat diff;
         cv::compare(img1, cap, diff, cv::CMP_NE);
