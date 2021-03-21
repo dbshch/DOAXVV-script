@@ -5,4 +5,5 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <Windows.h>
 
+int test(cv::Mat input, int in[6]);
 int captcha(cv::Mat input);

@@ -41,8 +41,7 @@ int captcha(cv::Mat input) {
     cv::cvtColor(input, input, COLOR_BGR2GRAY);
     cv::Rect myROI(300, 230, 360, 70);
     cv::Mat img1 = input(myROI);
-    cv::threshold(img1, img1, 130, 255, THRESH_BINARY_INV);
-    imwrite("a.png", img1);
+    cv::threshold(img1, img1, 160, 255, THRESH_BINARY_INV);
 
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
@@ -50,7 +49,7 @@ int captcha(cv::Mat input) {
     Mat drawing = Mat::zeros(img1.size(), CV_8UC3);
     if (contours.size() != 6)
         return 0;
-    int x[6];
+    int x1[6], x2[6];
     for (int i = 0; i < 6; ++i) {
         vector<Point> pi = contours.at(i);
         int x_min = 210000, y_min = 210000, x_max = 0, y_max = 0;
@@ -64,23 +63,35 @@ int captcha(cv::Mat input) {
             if (p.y > y_max)
                 y_max = p.y;
         }
-        x[i] = x_min;
+        x1[i] = x_min;
+        x2[i] = x_max;
     }
     for (int i = 0; i < 6; ++i) {
         for (int j = 0; j < 5; ++j) {
-            if (x[j + 1] < x[j]) {
-                int temp = x[j];
-                x[j] = x[j + 1];
-                x[j + 1] = temp;
+            if (x1[j + 1] < x1[j]) {
+                int temp = x1[j];
+                x1[j] = x1[j + 1];
+                x1[j + 1] = temp;
+                temp = x2[j];
+                x2[j] = x2[j + 1];
+                x2[j + 1] = temp;
             }
         }
     }
-    if (x[5] > 320)
+    if (x1[5] > 320 || x1[0] < 10)
         return 0;
     for (int i = 0; i < 5; ++i) {
-        if (abs(x[i + 1] - x[i]) < 10)
+        if (abs(x1[i + 1] - x1[i]) < 10)
             return 0;
     }
+    auto img2 = ~img1;
+    imwrite("a.png", img2);
+    //for (int i = 0; i < 6; ++i) {
+    //    cv::Rect myROI(x1[i], 0, x2[i] - x1[i], 70);
+    //    cv::Mat number = img1(myROI);
+    //    int nz = cv::countNonZero(number);
+    //    imwrite("nums/" + std::to_string(nz) + ".png", number);
+    //}
 
     string line;
     ifstream file("a.png", ios::in | ios::binary | ios::ate);
@@ -111,7 +122,7 @@ int captcha(cv::Mat input) {
 
     // Create an HTTP request handle.
     if (hConnect)
-        hRequest = WinHttpOpenRequest(hConnect, L"POST", L"/rest/2.0/ocr/v1/general_basic?access_token=24.9a5156e6baf525313fb1dafaf4a730a0.2592000.1596205839.282335-18888816",
+        hRequest = WinHttpOpenRequest(hConnect, L"POST", L"/rest/2.0/ocr/v1/general_basic?access_token=24.a3bee966110cde7351e2e0bfcc0b3d6c.2592000.1599307688.282335-18888816",
             NULL, WINHTTP_NO_REFERER,
             WINHTTP_DEFAULT_ACCEPT_TYPES,
             WINHTTP_FLAG_SECURE);
@@ -176,8 +187,9 @@ int captcha(cv::Mat input) {
     }
     int n1 = result.find('\"', n + 1);
     result = result.substr(n + 1, n1 - n - 1);
+    cout << result << endl;
     if (n1 - n - 1 < 6)
-        return 0;
+        return -1;
     for (int i = 0; i < 6; ++i) {
         switch (result[i])
         {
@@ -203,6 +215,9 @@ int captcha(cv::Mat input) {
         case ')':
             result[i] = '7';
             break;
+        case '^':
+            result[i] = '1';
+            break;
         case ' ':
             result = result.substr(0, i) + result.substr(i + 1);
             --i;
@@ -224,9 +239,9 @@ int captcha(cv::Mat input) {
         }
         if (result[i] - '0' > 9 || result[i] - '0' < 0) {
             cout << result << endl;
-            return 0;
+            return -1;
         }
-        if (result.length() < 6) return 0;
+        if (result.length() != 6) return -1;
     }
     printf("%s\n", result.c_str());
     //imshow("a", img1);
@@ -256,4 +271,99 @@ int captcha(cv::Mat input) {
     //    printf("%d", predict(nu[i]));
     //}
     return stoi(result);
+}
+
+int round(int number, int multiple = 10) {
+    return ((number + multiple / 2) / multiple) * multiple;
+}
+
+int test(cv::Mat input, int in[6]) {
+    cv::cvtColor(input, input, COLOR_BGR2GRAY);
+    cv::Rect myROI(300, 230, 360, 70);
+    cv::Mat img1 = input(myROI);
+    cv::threshold(img1, img1, 200, 255, THRESH_BINARY_INV);
+    imwrite("a.png", img1);
+
+    Mat cap = imread("a.png");
+    cv::cvtColor(cap, cap, COLOR_BGR2GRAY);
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    findContours(cap, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+    Mat drawing = Mat::zeros(cap.size(), CV_8UC3);
+    if (contours.size() != 6)
+        return 0;
+    int x1[6], x2[6],y1[6],y2[6];
+    for (int i = 0; i < 6; ++i) {
+        vector<Point> pi = contours.at(i);
+        int x_min = 210000, y_min = 210000, x_max = 0, y_max = 0;
+        for (auto p : pi) {
+            if (p.x < x_min)
+                x_min = p.x;
+            if (p.x > x_max)
+                x_max = p.x;
+            if (p.y < y_min)
+                y_min = p.y;
+            if (p.y > y_max)
+                y_max = p.y;
+        }
+        x1[i] = x_min;
+        x2[i] = x_max;
+        y1[i] = y_min;
+        y2[i] = y_max;
+    }
+    for (int i = 0; i < 6; ++i) {
+        for (int j = 0; j < 5; ++j) {
+            if (x1[j + 1] < x1[j]) {
+                int temp = x1[j];
+                x1[j] = x1[j + 1];
+                x1[j + 1] = temp;
+                temp = x2[j];
+                x2[j] = x2[j + 1];
+                x2[j + 1] = temp;
+                temp = y1[j];
+                y1[j] = y1[j + 1];
+                y1[j + 1] = temp;
+                temp = y2[j];
+                y2[j] = y2[j + 1];
+                y2[j + 1] = temp;
+            }
+        }
+    }
+    if (x1[5] > 320 || x1[0] < 10)
+        return 0;
+    for (int i = 0; i < 5; ++i) {
+        if (abs(x1[i + 1] - x1[i]) < 10)
+            return 0;
+    }
+    for (int i = 0; i < 6; ++i) {
+        int nnz = 0;
+        cv::Rect myROI(x1[i]-5, 0, round(x2[i] - x1[i]+10), 70);
+        cv::Mat number = cap(myROI);
+        int nz = cv::countNonZero(number);
+        int flg = 1;
+        std::string fn = "nums/" + std::to_string(round(x2[i] - x1[i])) + "-" + std::to_string(round(y2[i] - y1[i])) + "/" + std::to_string(round(nz, 30));
+        for (int j = 0; j < 10; ++j) {
+            if (j != in[i])
+                continue;
+            std::string file = fn + "-" + std::to_string(j) + ".png";
+            GetFileAttributesA(file.c_str()); // from winbase.h
+            if (INVALID_FILE_ATTRIBUTES == GetFileAttributesA(file.c_str()) && GetLastError() == ERROR_FILE_NOT_FOUND)
+            {
+                continue;
+            }
+            auto ref = imread(file);
+            cv::cvtColor(ref, ref, COLOR_BGR2GRAY);
+            Mat diff;
+            cv::compare(number, ref, diff, cv::CMP_NE);
+            nnz = cv::countNonZero(diff);
+            if (nnz < nz*0.3) {
+                flg = 0;
+            }
+        }
+        if (flg) {
+            imwrite("nums/" + std::to_string(round(x2[i] - x1[i])) + "-" + std::to_string(round(y2[i] - y1[i])) + "/" + std::to_string(round(nz, 30)) + "-" + std::to_string(in[i]) + ".png", number);
+            cout << nnz << " " << "nums/" + std::to_string(round(x2[i] - x1[i])) + "-" + std::to_string(round(y2[i] - y1[i])) + "/" + std::to_string(round(nz, 30)) + "-" + std::to_string(in[i]) + ".png" << endl;
+        }
+    }
+    return 0;
 }

@@ -16,6 +16,7 @@ int type = 0;
 int region = 0;
 int position_x = 0, position_y = 0;
 int fp_drink = -1;
+int pop = 0;
 
 void clickPosition(int x, int y) {
     x += position_x;
@@ -26,7 +27,7 @@ void clickPosition(int x, int y) {
 
     Inputs[0].type = INPUT_MOUSE;
     Inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-
+    waitKey(10);
     Inputs[1].type = INPUT_MOUSE;
     Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
 
@@ -201,9 +202,13 @@ struct state {
 
 state init, prep, wait1, wait3, FP, game, scaptcha;
 
-void waitTime(int r = 3000) {
+void waitTime(int r = 3000, int min = 800) {
     int t = rand() % r;
-    waitKey(t+500);
+    //waitKey(t+min);
+    if (r >= 1000)
+        waitKey(1000);
+    else
+        waitKey(r);
 }
 
 void run_machine() {
@@ -242,7 +247,11 @@ int c_init(Mat input) {
     cv::compare(img1, ma, diff, cv::CMP_NE);
     int nz = cv::countNonZero(diff);
     printf("init %d\n",nz);
+    int cnt = 0;
     while (nz > 2000) {
+        if (cnt == 200) {
+            return 0;
+        }
         POINT a, b;
         a.x = 970;
         a.y = 570;
@@ -256,16 +265,18 @@ int c_init(Mat input) {
         cv::compare(img1, ma, diff, cv::CMP_NE);
         nz = cv::countNonZero(diff);
         printf("init %d\n", nz);
+        ++cnt;
         waitKey(1000);
     }
     return 0;
 }
 
 int c_prep(Mat input) {
-    Mat ma = region == 1 ? imread("prep.png") : imread("prep_jp.png");
+    Mat ma = region == 1 ? imread("prep.png") : imread("prep_jp1.png");
     cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
-    cv::Rect myROI(680, 510, 100, 60);
-    cv::Mat img1 = input(myROI);
+    cv::Rect myROIsteam(680, 510, 100, 60);
+    cv::Rect myROIjp(734, 521, 830 - 734, 550 - 521);
+    cv::Mat img1 = region == 1 ? input(myROIsteam) : input(myROIjp);
     //imwrite("prep_jp.png", img1);
     Mat diff;
     cv::compare(img1, ma, diff, cv::CMP_NE);
@@ -283,7 +294,7 @@ int c_prep(Mat input) {
         input = s2mat(a, b);
         cv::cvtColor(input, input, COLOR_BGR2GRAY);
         cv::threshold(input, input, 0, 255, THRESH_BINARY_INV | THRESH_OTSU);
-        cv::Mat img1 = input(myROI);
+        cv::Mat img1 = region == 1 ? input(myROIsteam) : input(myROIjp);
         cv::compare(img1, ma, diff, cv::CMP_NE);
         nz = cv::countNonZero(diff);
         cout << "prep " << nz << endl;
@@ -314,10 +325,11 @@ int c_wait1(Mat input) {
     int nz2 = cv::countNonZero(diff);
     printf("wait %d %d\n", nz , nz2);
     while (1) {
-        if (nz2 < 100)
-            flg += 1;
-        if (flg > 2)
-            return 1;
+        if (nz2 == 0) {
+            if (flg == 1)
+                return 1;
+            ++flg;
+        }
         if (nz < 4000)
             return 0;
         POINT a, b;
@@ -334,9 +346,9 @@ int c_wait1(Mat input) {
         nz = cv::countNonZero(diff);
         cv::compare(img1, fp, diff, cv::CMP_NE);
         nz2 = cv::countNonZero(diff);
-        printf("wait %d %\n", nz, nz2);
+        printf("wait %d %d\n", nz, nz2);
         //imshow("i", img1);
-        waitKey(500);
+        waitKey(200);
     }
 }
 
@@ -344,20 +356,53 @@ void a_init() {
     //waitTime();
     clickPosition(670, 210);
     waitTime(500);
-    if (type == 1)
+    if (type == 0)
+        clickPosition(698 + rand() % 235, 300);//398 +rand() % 26);
+    else if (type == 1)
         clickPosition(698 + rand() % 235, 368);//398 +rand() % 26);
     else if (type == 2)
         clickPosition(698 + rand() % 235, 398);//398 +rand() % 26);
     else if (type == 3)
         clickPosition(698 + rand() % 235, 464);//398 +rand() % 26);
+    else if (type == 4)
+        clickPosition(698 + rand() % 235, 520);//398 +rand() % 26);
 }
 
 void a_prep() {
-    waitTime(3000);
-    clickPosition(663+rand()%181, 522+rand()%32);
+    waitTime(2200);
+    if (type == 4) {
+        POINT a, b;
+        a.x = 970;
+        a.y = 570;
+        b.x = 970;
+        b.y = 570;
+        Mat ma = region == 1 ? imread("pop.png") : imread("pop_jp.png");
+        cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
+        if (!cap_flg){
+            pop = 0;
+            auto input = s2mat(a, b);
+            cv::Rect myROI(837, 514, 944 - 837, 560 - 514);
+            cv::cvtColor(input, input, COLOR_BGR2GRAY);
+            cv::Mat img1 = input(myROI);
+            //imwrite("pop.png", img1);
+            Mat diff;
+            cv::compare(img1, ma, diff, cv::CMP_NE);
+            int nz = cv::countNonZero(diff);
+            cout << nz << endl;
+            if (nz > 20) {
+                pop = 1;
+                clickPosition(880, 533);
+                waitKey(1000);
+                clickPosition(535, 458);
+            }
+            waitKey(1000);
+        }
+    }
+    clickPosition(722, 522+rand()%32);
 }
 
 void a_captcha() {
+    int rep = 0;
     cap_flg = 1;
     while (1) {
         int r = 0;
@@ -369,6 +414,16 @@ void a_captcha() {
         int cn = 0;
         while (r == 0) {
             r = captcha(s2mat(a, b));
+            if (r == -1) {
+                waitKey(50);
+                ++rep;
+                continue;
+            }
+            if (rep == 100) {
+                clickPosition(550, 467);
+                waitKey(2000);
+                rep = 0;
+            }
             if (cn == 50) r = 111111;
         }
         printf("%d\n", r);
@@ -390,7 +445,7 @@ void a_captcha() {
         SendInput(12, input, sizeof(INPUT));
 
         clickPosition(550, 467);
-        waitKey(6000);
+        waitKey(2000);
         cv::Rect myROI(350, 150, 270, 70);
         Mat sc, gray;
         sc = s2mat(a, b);
@@ -403,21 +458,15 @@ void a_captcha() {
         Mat diff;
         cv::compare(img1, cap, diff, cv::CMP_NE);
         int nz = cv::countNonZero(diff);
-        if (nz > 1000) {
+        if (nz > 2000) {
+            waitKey(1000);
+            clickPosition(550, 467);
             return;
         }
     }
 }
 
 void a_FP() {
-    waitTime(1000);
-    if (fp_drink == 0) {
-        cout << "no fp" << endl;
-        waitKey(0);
-        fp_drink = -2;
-        return;
-    }
-    if (fp_drink > 0) --fp_drink;
     while (1) {
         cv::Rect myROI(350, 150, 270, 70);
         POINT a, b;
@@ -451,6 +500,14 @@ void a_FP() {
         printf("fp %d\n", nz);
         waitKey(500);
     }
+    if (fp_drink == 0) {
+        cout << "no fp" << endl;
+        waitKey(0);
+        fp_drink = -2;
+        return;
+    }
+    waitTime(1000);
+    if (fp_drink > 0) --fp_drink;
     if (region == 2) {
         clickPosition(449, 389);
         waitKey(1000);
@@ -459,9 +516,36 @@ void a_FP() {
 }
 
 void a_game() {
-    waitTime(3000);
-    clickPosition(734+rand()%56, 526+rand()%41);
-    waitTime(3000);
+    if (pop == 1) {
+        waitKey(1000);
+        while (1) {
+            clickPosition(535, 458);
+
+            POINT a, b;
+            a.x = 970;
+            a.y = 570;
+            b.x = 970;
+            b.y = 570;
+            auto input = s2mat(a, b);
+            cv::cvtColor(input, input, COLOR_BGR2GRAY);
+            cv::threshold(input, input, 0, 255, THRESH_BINARY_INV | THRESH_OTSU);
+            Mat ma = imread("game_jp.png");
+            cv::cvtColor(ma, ma, COLOR_BGR2GRAY);
+            cv::Rect myROI(740, 526, 40, 40);
+            cv::Mat img1 = input(myROI);
+            //imwrite("game_jp.png", img1);
+            Mat diff;
+            cv::compare(img1, ma, diff, cv::CMP_NE);
+            int nz = cv::countNonZero(diff);
+            cout << nz << endl;
+            if (nz < 400)
+                break;
+            waitKey(1000);
+        }
+    }
+    waitKey(2000);
+    clickPosition(734 + rand() % 56, 526 + rand() % 41);
+    waitKey(2000);
     SetCursorPos(position_x + 503 + rand() % 69, position_y + 440 + rand() % 61);
     while (1) {
         INPUT Inputs[2] = { 0 };
@@ -493,7 +577,7 @@ void a_game() {
         //cout << "game " << nz << endl;
         if (nz < 4000) break;
         //imshow("i", img1);
-        waitTime(200);
+        waitTime(200, 500);
     }
 }
 
@@ -588,6 +672,7 @@ int c_captcha(Mat input) {
 
 int main()
 {
+    SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED);
     HWND hwnd = NULL;
     HWND hwnd2 = NULL;
     int cnt = 0;
@@ -611,6 +696,34 @@ int main()
     GetWindowRect(hwnd2, &rect);
     position_x = rect.left + 8;
     position_y = rect.top;
+    /*POINT a, b;
+    a.x = 970;
+    a.y = 570;
+    b.x = 970;
+    b.y = 570;
+    int cn = 0;
+    int r = 0;
+    int in[6];
+    int inputnum = 0;
+    cin >> inputnum;
+        for (int i = 0; i < 6; ++i) {
+            in[5 - i] = inputnum % 10;
+            inputnum /= 10;
+        }
+    while (r == 0) {
+
+        r = test(s2mat(a, b), in);
+        int i = waitKey(500);
+        if (i >= 0) {
+            cout << "num" << endl;
+            cin >> inputnum;
+            for (int i = 0; i < 6; ++i) {
+                in[5 - i] = inputnum % 10;
+                inputnum /= 10;
+            }
+        }
+    }
+    return 0;*/
     //cout << rect.left <<" "<< rect.right << " " << rect.top << " " << rect.bottom << endl;
     //MoveWindow(hwnd2, -8, 0, 976, 579, false);
     cout << "1:steam 2: jp" << endl;
@@ -618,8 +731,23 @@ int main()
     while (region == 3) {
         POINT p;
         GetCursorPos(&p);
-        cout << p.x << " " << p.y << endl;
+        cout << p.x - position_x << " " << p.y - position_y << endl;
         waitKey(1000);
+    }
+    if (region == 0) {
+        POINT a, b;
+        a.x = 970;
+        a.y = 570;
+        b.x = 970;
+        b.y = 570;
+        Mat input, gray;
+        input = s2mat(a, b);
+        cv::cvtColor(input, gray, COLOR_BGR2GRAY);
+        cv::threshold(gray, gray, 0, 255, THRESH_BINARY_INV | THRESH_OTSU);
+        cv::Rect myROI(734, 521, 830-734, 550-521);
+        cv::Mat img1 = gray(myROI);
+        imwrite("prep_jp1.png", img1);
+        return 0;
     }
     cout << "use FP drink. -1 for infinite" << endl;
     cin >> fp_drink;
