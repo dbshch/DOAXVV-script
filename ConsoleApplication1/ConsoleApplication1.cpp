@@ -22,7 +22,7 @@ void clickPosition(int x, int y) {
     x += position_x;
     y += position_y;
 
-    SetCursorPos(x, y);
+    SetPhysicalCursorPos(x, y);
     INPUT Inputs[2] = { 0 };
 
     Inputs[0].type = INPUT_MOUSE;
